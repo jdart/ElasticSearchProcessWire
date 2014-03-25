@@ -23,6 +23,40 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 	public function init() {
 
 		$this->pages->addHookAfter('save', $this, 'afterPageSave');
+		$this->addHookAfter('Page::render', $this, 'checkForRebuildSearchData');
+	}
+
+	static public function getModuleConfigInputfields(array $data) 
+	{
+		$fields = new InputfieldWrapper();
+		$modules = Wire::getFuel('modules');
+
+		$field = $modules->get("InputfieldText");
+		$field->name = "es_host";
+		$field->label = __("ElasticSearch Host");
+		$field->value = isset($data['es_host']) ? $data['es_host'] : '127.0.0.1';
+		$field->description = __("An IP address will do, i.e. '127.0.0.1'.");
+		$fields->add($field);
+
+		$field = $modules->get("InputfieldText");
+		$field->name = "es_port";
+		$field->label = __("ElasticSearch Port");
+		$field->value = isset($data['es_port']) ? $data['es_port'] : '9200';
+		$field->description = __("Usually 9200.");
+		$fields->add($field);
+		
+		$field = $modules->get('InputfieldMarkup');
+        $field->label  = __('Search Data');
+
+		$field_button = $modules->get('InputfieldButton');
+		$field_button->name = 'update_all_pages';
+		$field_button->value = __('Update All Pages');
+		$field_button->href = 'edit?name='.wire('input')->get('name').'&es_update=all_pages';
+		$field->add($field_button);
+
+		$fields->add($field);
+
+		return $fields;
 	}
 
 	public function afterPageSave($event) {
@@ -30,6 +64,17 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$page = $event->arguments[0];
 
 		$this->updatePageContentInElasticSearch($page);
+	}
+
+	public function checkForRebuildSearchData($event) {
+
+		if ($this->input->get('es_update') != 'all_pages' || $event->object->template != 'admin') 
+			return;
+
+		// foreach ($this->pages as $page) {
+
+		// 	$this->updatePageContentInElasticSearch($page);
+		// }
 	}
 
 	protected function getAllContentForPage($page) {
@@ -101,37 +146,42 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 	protected function getElasticSearchHost() {
 
-		return '127.0.0.1';
+		return $this->get('es_host');
 	}
 
 	protected function getElasticSearchPort() {
 
-		return 9200;
+		return $this->get('es_port');
 	}
 
-	protected function getMinimumScore()
-	{
-		return 0.03;
-	}
+	public function search($query, $from=0, $size=20, $minimum_score=0.03) {
 
-	public function search($query, $from=0, $size=20) {
+		if (is_string($query)) {
 
-		$results = $this->curlJsonGet(array(
-			'query' => array(
-				'match' => array(
-					'_all' => $query,
+			$params = array(
+				'min_score' => $minimum_score,
+				'query' => array(
+					'match' => array(
+						'_all' => $query,
+					),
 				),
-			),
-			'from' => $from,
-			'size' => $size
-		));
+				'from' => $from,
+				'size' => $size
+			);
+
+		} elseif (is_array($query)) {
+
+			$params = $query;
+			$params['from'] = $from;
+			$params['size'] = $size;
+			$params['min_score'] = $minimum_score;
+		}
+
+		$results = $this->curlJsonGet($params);
 
 		$pages = new PageArray;
 
 		if ( ! (int)$results->hits->total)
-			return $pages;
-
-		if (((float)$results->hits->max_score) < $this->getMinimumScore())
 			return $pages;
 
 		foreach ($results->hits->hits as $hit) 
