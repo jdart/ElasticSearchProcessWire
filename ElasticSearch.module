@@ -1,0 +1,142 @@
+<?php
+
+class ElasticSearch extends WireData implements Module, ConfigurableModule {
+
+	/**
+	 * getModuleInfo is a module required by all modules to tell ProcessWire about them
+	 *
+	 * @return array
+	 *
+	 */
+	public static function getModuleInfo() {
+
+		return array(
+			'title' => 'ElasticSearch for PW', 
+			'version' => 01, 
+			'summary' => '...',
+			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
+			'singular' => true, 
+			'autoload' => true, 
+		);
+	}
+
+	public function init() {
+
+		$this->pages->addHookAfter('save', $this, 'afterPageSave');
+	}
+
+	public function afterPageSave($event) {
+
+		$page = $event->arguments[0];
+
+		$this->updatePageContentInElasticSearch($page);
+	}
+
+	protected function getAllContentForPage($page) {
+
+		$all_field_data = array();
+
+		foreach ($page->fields as $field) {
+
+			$all_field_data[$field->name] = $page->get($field->name);
+		}
+
+		return $all_field_data;
+	}
+
+	protected function updatePageContentInElasticSearch($page) {
+
+		$response = $this->curlJsonPut(
+			$page->id, 
+			$this->getAllContentForPage($page)
+		);
+	}
+
+	protected function curlJsonGet($data) {
+	
+		static $ch;
+
+		if (!isset($ch))
+			$ch = curl_init();
+		
+		curl_setopt_array($ch, array(
+			CURLOPT_URL => $this->getElasticSearchUrlBase().'_search',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_POSTFIELDS => json_encode($data)
+		));
+
+		return json_decode(curl_exec($ch));
+	}
+
+	protected function curlJsonPut($id, $data) {
+			
+		static $ch;
+		
+		if (!isset($ch))
+			$ch = curl_init();
+		
+		curl_setopt_array($ch, array(
+			CURLOPT_URL => $this->getElasticSearchUrlBase().urlencode($id),
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_CUSTOMREQUEST => 'PUT',
+			CURLOPT_POSTFIELDS => json_encode($data)
+		));
+
+		return json_decode(curl_exec($ch));
+	}
+
+	protected function getElasticSearchUrlBase() {
+
+		return sprintf('http://%s:%d/%s/pw/', 
+			$this->getElasticSearchHost(), 
+			$this->getElasticSearchPort(),
+			$this->getSiteIndex()
+		);
+	}
+
+	protected function getSiteIndex() {
+
+		return preg_replace('/[^a-z]/', '_', strtolower($this->config->httpHost));
+	}
+
+	protected function getElasticSearchHost() {
+
+		return '127.0.0.1';
+	}
+
+	protected function getElasticSearchPort() {
+
+		return 9200;
+	}
+
+	protected function getMinimumScore()
+	{
+		return 0.03;
+	}
+
+	public function search($query, $from=0, $size=20) {
+
+		$results = $this->curlJsonGet(array(
+			'query' => array(
+				'match' => array(
+					'_all' => $query,
+				),
+			),
+			'from' => $from,
+			'size' => $size
+		));
+
+		$pages = new PageArray;
+
+		if ( ! (int)$results->hits->total)
+			return $pages;
+
+		if (((float)$results->hits->max_score) < $this->getMinimumScore())
+			return $pages;
+
+		foreach ($results->hits->hits as $hit) 
+			$pages->add($hit->_id);
+		
+		return $pages;
+	}
+}
