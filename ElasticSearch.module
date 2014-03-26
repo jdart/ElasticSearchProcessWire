@@ -46,12 +46,13 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$fields->add($field);
 		
 		$field = $modules->get('InputfieldMarkup');
-        $field->label  = __('Search Data');
+		$field->label  = __('Search Data');
 
 		$field_button = $modules->get('InputfieldButton');
 		$field_button->name = 'update_all_pages';
 		$field_button->value = __('Update All Pages');
 		$field_button->href = 'edit?name='.wire('input')->get('name').'&es_update=all_pages';
+		
 		$field->add($field_button);
 
 		$fields->add($field);
@@ -71,61 +72,149 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		if ($this->input->get('es_update') != 'all_pages' || $event->object->template != 'admin') 
 			return;
 
-		// foreach ($this->pages as $page) {
+		foreach ($this->pages->find("id!=2, id!=7, has_parent!=2, has_parent!=7, template!=admin, sort=id, include=all") as $page) {
 
-		// 	$this->updatePageContentInElasticSearch($page);
-		// }
+			$this->updatePageContentInElasticSearch($page);
+		}
 	}
 
 	protected function getAllContentForPage($page) {
 
-		$all_field_data = array();
+		$values = array();
 
 		foreach ($page->fields as $field) {
 
-			$all_field_data[$field->name] = $page->get($field->name);
+			$value = $page->get($field->name);
+			$type = $field->type;
+
+			if ($type instanceof FieldtypePage)
+				$value = $this->getPageTypeAsContent($value);
+			elseif ($type instanceof FieldtypeFile) 
+				$value = $this->getFileTypeAsContent($value);
+			elseif ($type instanceof FieldtypePage) 
+				$value = $this->getPageTypeAsContent($value);
+			elseif ($type instanceof FieldtypeRepeater) 
+				$value = $this->getRepeaterTypeAsContent($value);
+			elseif (preg_match('/Language$/', get_class($type)))
+				$value = $this->getLanguageTypeAsContent($value);
+
+			$values[$field->name] = $value;
 		}
 
-		return $all_field_data;
+		return $values;
 	}
+
+	protected function getLanguageTypeAsContent($value)
+	{
+		$language_ids = wire('modules')->get('LanguageSupport')->get('otherLanguagePageIDs');
+		$language_ids[] = wire('modules')->get('LanguageSupport')->get('defaultLanguagePageID');
+		
+		$values = array();
+
+		foreach ($language_ids as $language_id) {
+			$values[] = $value->getLanguageValue($language_id);
+		}
+
+		return $values;
+	}
+
+	protected function getFileTypeAsContent($value)	{
+
+		$values = array();
+
+		foreach ($value as $file) {
+			$values[] = array(
+				'description' => $file->description(),
+				'filename' => $file->basename()
+			);
+		}
+
+		return $values;
+	}
+
+	protected function getPageTypeAsContent($value)	{
+
+		$values = array();
+
+		foreach ($value as $subPage) {
+			$title = $subPage->get('title');
+			if ($title instanceof LanguagesPageFieldValue) {
+				$title = $this->getLanguageTypeAsContent($title);
+			}
+			$values[] = $title;
+		}
+
+		return $values;
+	}
+
+	protected function getRepeaterTypeAsContent($value)	{
+
+		$values = array();
+
+		foreach ($value as $subPage) {
+			$values[] = $this->getAllContentForPage($subPage);
+		}
+
+		return $values;
+	}	
 
 	protected function updatePageContentInElasticSearch($page) {
 
-		$response = $this->curlJsonPut(
-			$page->id, 
-			$this->getAllContentForPage($page)
-		);
+		$this->curlJsonDelete($page->id);
+
+		$raw_array = $this->getAllContentForPage($page);
+
+		$content = array('data' => $this->flattenArray($raw_array));
+
+		$response = $this->curlJsonPut($page->id, $content);
 	}
 
-	protected function curlJsonGet($data) {
+	protected function flattenArray($array)	{
+
+		$return = array();
+
+		array_walk_recursive($array, function($a) use (&$return) { 
+
+			$return[] = $a; 
+		});
+
+		return $return;
+	}
+
+	protected function curlJsonGet($url, $data) {
 	
-		static $ch;
-
-		if (!isset($ch))
-			$ch = curl_init();
-		
-		curl_setopt_array($ch, array(
-			CURLOPT_URL => $this->getElasticSearchUrlBase().'_search',
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_POSTFIELDS => json_encode($data)
-		));
-
-		return json_decode(curl_exec($ch));
+		return $this->curlJsonRequest(null, $url, $data);
 	}
 
 	protected function curlJsonPut($id, $data) {
 			
+		return $this->curlJsonRequest('PUT', (int)$id, $data);
+	}
+
+	protected function curlJsonDelete($id)
+	{
+		return $this->curlJsonRequest('DELETE', (int)$id);
+	}
+
+	public function curlJsonRequest($method=null, $append_url='', $data=null)
+	{
 		static $ch;
 		
-		if (!isset($ch))
+		if ( ! isset($ch))
 			$ch = curl_init();
 		
-		curl_setopt_array($ch, array(
-			CURLOPT_URL => $this->getElasticSearchUrlBase().urlencode($id),
+		$config = array(
+			CURLOPT_URL => $this->getElasticSearchUrlBase().$append_url,
 			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_CUSTOMREQUEST => 'PUT',
-			CURLOPT_POSTFIELDS => json_encode($data)
-		));
+		);
+
+		if ( ! is_null($method))
+			$config[CURLOPT_CUSTOMREQUEST] = $method;
+
+		if ( ! is_null($data))
+			$config[CURLOPT_POSTFIELDS] = json_encode($data);
+
+		curl_setopt_array($ch, $config);
 
 		return json_decode(curl_exec($ch));
 	}
@@ -177,12 +266,14 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 			$params['min_score'] = $minimum_score;
 		}
 
-		$results = $this->curlJsonGet($params);
+		$results = $this->curlJsonGet('_search', $params);
 
 		$pages = new PageArray;
 
 		if ( ! (int)$results->hits->total)
 			return $pages;
+
+		$pages->setTotal($results->hits->total);
 
 		foreach ($results->hits->hits as $hit) 
 			$pages->add($hit->_id);
