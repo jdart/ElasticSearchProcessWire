@@ -20,7 +20,18 @@ When pages are saved ElasticSearch will be updated with the new content.
 
 ## Usage
 
+### Basic
+
     $pages = wire('modules')->get('ElasticSearch')->search('Something to search for'); 
+
+### Limit/Offset 
+
+    $pages = wire('modules')->get('ElasticSearch')->search('Something to search for', $offset, $per_page); 
+
+### Totals results
+
+	$pages = wire('modules')->get('ElasticSearch')->search('Something to search for'); 
+	$pages->getTotal();
 
 ## ElasticSearch Configuration
 
