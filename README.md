@@ -13,7 +13,7 @@ The ElasticSearch module for [ProcessWire CMS/CMF](http://processwire.com/) will
 
 * Make sure PHP has the cURL library installed. (apt-get install php5-curl)
 * Install [ElasticSearch](http://www.elasticsearch.org/overview/elkdownloads/).
-* The [usual methods](http://modules.processwire.com/install-uninstall/) apply.
+* Install this module, the [usual methods](http://modules.processwire.com/install-uninstall/) apply.
 * Once the module is installed, go to the module settings and configure it for your ElasticSearch instance, and click save. You should also click "Index All Pages".
 
 When pages are saved ElasticSearch will be updated with the new content.
