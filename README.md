@@ -31,3 +31,6 @@ Configuring ElasticSearch can be very simple, if running ElasticSearch on a sing
     discovery.zen.ping.multicast.enabled: false
     discovery.zen.ping.unicast.hosts: []
 
+## What gets searched?
+
+I made a quick go of trying to get all content from a page, it's working for text fields, translated fields, repeaters and filenames.
