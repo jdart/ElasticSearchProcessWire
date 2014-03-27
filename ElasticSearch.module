@@ -1,19 +1,23 @@
 <?php
 
+/**
+ * ElasticSearch for ProcessWire
+ * 
+ * By Jonathan Dart
+ * No Licence
+ * 
+ * http://metricmarketing.ca/blog/author/jonathan-dart
+ *
+ */
+
 class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
-	/**
-	 * getModuleInfo is a module required by all modules to tell ProcessWire about them
-	 *
-	 * @return array
-	 *
-	 */
 	public static function getModuleInfo() {
 
 		return array(
-			'title' => 'ElasticSearch for PW', 
+			'title' => 'ElasticSearch', 
 			'version' => 01, 
-			'summary' => '...',
+			'summary' => 'Make your pages searchable in ElasticSearch',
 			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
 			'singular' => true, 
 			'autoload' => true, 
@@ -50,7 +54,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		$field_button = $modules->get('InputfieldButton');
 		$field_button->name = 'update_all_pages';
-		$field_button->value = __('Update All Pages');
+		$field_button->value = __('Index All Pages');
 		$field_button->href = 'edit?name='.wire('input')->get('name').'&es_update=all_pages';
 		
 		$field->add($field_button);
@@ -87,16 +91,18 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 			$value = $page->get($field->name);
 			$type = $field->type;
 
-			if ($type instanceof FieldtypePage)
-				$value = $this->getPageTypeAsContent($value);
-			elseif ($type instanceof FieldtypeFile) 
+			if (is_null($value))
+				continue;
+
+			if ($type instanceof FieldtypeFile) 
 				$value = $this->getFileTypeAsContent($value);
 			elseif ($type instanceof FieldtypePage) 
 				$value = $this->getPageTypeAsContent($value);
 			elseif ($type instanceof FieldtypeRepeater) 
 				$value = $this->getRepeaterTypeAsContent($value);
-			elseif (preg_match('/Language$/', get_class($type)))
+			elseif (preg_match('/Language$/', get_class($type))) {
 				$value = $this->getLanguageTypeAsContent($value);
+			}
 
 			$values[$field->name] = $value;
 		}
@@ -134,17 +140,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 	protected function getPageTypeAsContent($value)	{
 
-		$values = array();
-
-		foreach ($value as $subPage) {
-			$title = $subPage->get('title');
-			if ($title instanceof LanguagesPageFieldValue) {
-				$title = $this->getLanguageTypeAsContent($title);
-			}
-			$values[] = $title;
-		}
-
-		return $values;
+		return $this->getAllContentForPage($value);
 	}
 
 	protected function getRepeaterTypeAsContent($value)	{
