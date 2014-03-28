@@ -16,7 +16,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		return array(
 			'title' => 'ElasticSearch', 
-			'version' => 20, 
+			'version' => 21, 
 			'summary' => 'Make your pages searchable in ElasticSearch',
 			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
 			'singular' => true, 
