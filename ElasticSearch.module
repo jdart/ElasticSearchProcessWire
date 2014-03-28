@@ -284,8 +284,9 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 			$params = array(
 				'min_score' => $minimum_score,
 				'query' => array(
-					'match' => array(
-						'_all' => $query,
+					'fuzzy_like_this' => array(
+						'fields' => array('_all'),
+						'like_text' => $query
 					),
 				),
 				'from' => $from,
@@ -305,6 +306,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$pages = new PageArray;
 
 		if (isset($results->error)) {
+			throw new WireException($results->error);
 			$this->pages->error('ElasticSearch: '.$results->error);
 			return $pages;
 		}
