@@ -16,7 +16,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		return array(
 			'title' => 'ElasticSearch', 
-			'version' => 01, 
+			'version' => 20, 
 			'summary' => 'Make your pages searchable in ElasticSearch',
 			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
 			'singular' => true, 
@@ -27,6 +27,9 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 	public function init() {
 
 		$this->pages->addHookAfter('save', $this, 'afterPageSave');
+		$this->pages->addHookBefore('delete', $this, 'beforePageDelete');
+		$this->pages->addHookBefore('trash', $this, 'beforePageTrash');
+		$this->pages->addHookAfter('restored', $this, 'afterPageRestored');
 		$this->addHookAfter('Page::render', $this, 'checkForRebuildSearchData');
 	}
 
@@ -67,8 +70,33 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 	public function afterPageSave($event) {
 
 		$page = $event->arguments[0];
-
 		$this->updatePageContentInElasticSearch($page);
+	}
+
+	public function afterPageRestored($event) {
+
+		$page = $event->arguments[0];
+		$this->updatePageContentInElasticSearch($page);
+	}	
+
+	public function beforePageDelete($event) {
+
+		$page = $event->arguments[0];
+		$this->curlJsonDelete($page->id);
+	}
+
+	public function beforePageTrash($event) {
+
+		$page = $event->arguments[0];
+		$response = $this->curlJsonDelete($page->id);
+	}
+
+	public function pageShouldBeIndexed($page) {
+
+		if ($page->isPublic())
+			return true;
+
+		return false;
 	}
 
 	public function checkForRebuildSearchData($event) {
@@ -76,10 +104,12 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		if ($this->input->get('es_update') != 'all_pages' || $event->object->template != 'admin') 
 			return;
 
-		foreach ($this->pages->find("id!=2, id!=7, has_parent!=2, has_parent!=7, template!=admin, sort=id, include=all") as $page) {
+		foreach ($this->pages->find("id!=2, id!=7, has_parent!=2, has_parent!=7, template!=admin, include=all") as $page) {
 
 			$this->updatePageContentInElasticSearch($page);
 		}
+
+		$this->session->message('Finished adding all pages to search index.');
 	}
 
 	protected function getAllContentForPage($page) {
@@ -156,7 +186,8 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 	protected function updatePageContentInElasticSearch($page) {
 
-		$this->curlJsonDelete($page->id);
+		if ( ! $this->pageShouldBeIndexed($page))
+			return;
 
 		$raw_array = $this->getAllContentForPage($page);
 
@@ -195,7 +226,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 	public function curlJsonRequest($method=null, $append_url='', $data=null)
 	{
 		static $ch;
-		
+
 		if ( ! isset($ch))
 			$ch = curl_init();
 		
@@ -212,7 +243,14 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		curl_setopt_array($ch, $config);
 
-		return json_decode(curl_exec($ch));
+		$response = curl_exec($ch);
+
+		if ($response === false) {
+			$this->pages->error('ElasticSearch: '.curl_error($ch));
+			return null;
+		}
+
+		return json_decode($response);
 	}
 
 	protected function getElasticSearchUrlBase() {
@@ -250,6 +288,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 						'_all' => $query,
 					),
 				),
+				'cock' => 1,
 				'from' => $from,
 				'size' => $size
 			);
@@ -265,6 +304,11 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$results = $this->curlJsonGet('_search', $params);
 
 		$pages = new PageArray;
+
+		if ($results->error) {
+			$this->pages->error('ElasticSearch: '.$results->error);
+			return $pages;
+		}
 
 		if ( ! (int)$results->hits->total)
 			return $pages;
