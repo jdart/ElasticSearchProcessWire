@@ -1,6 +1,6 @@
 # ElasticSearch for ProcessWire 0.3.0
 
-## Since 0.3.0 ElasticSearch for ProcessWire is using the GPLv3 License
+Since 0.3.0 ElasticSearch for ProcessWire is using the GPLv3 license.
 
 ## About ElasticSearch for ProcessWire
 
@@ -16,26 +16,54 @@ The ElasticSearch module for [ProcessWire CMS/CMF](http://processwire.com/) will
 * Make sure PHP has the cURL library installed. (apt-get install php5-curl)
 * Install [ElasticSearch](http://www.elasticsearch.org/overview/elkdownloads/).
 * Install this module, the [usual methods](http://modules.processwire.com/install-uninstall/) apply.
-* Once the module is installed, go to the module settings and configure it for your ElasticSearch instance, and click save. You should also click "Index All Pages".
-
-When pages are saved ElasticSearch will be updated with the new content.
+* In the module settings configure your ElasticSearch IP and port, and click save.
+* In the module settings click "Index All Pages".
 
 ## Usage
 
-### Basic
+### Synchonizing Page Data with ElasticSearch
 
-    $pages = wire('modules')->get('ElasticSearch')->search('Something to search for'); 
+When pages are saved, deleted, trashed, and restored ElasticSearch will be notified accordinly, so after you've clicked "Index All Pages" you shouldn't need to think about it again.
 
-### Limit/Offset 
+## What gets searched?
 
-    $pages = wire('modules')->get('ElasticSearch')->search('Something to search for', $offset, $per_page); 
+Most content from a page should be seachable: text fields, translated fields, repeaters and filenames.
 
-### Total results
+### Searching
 
-	$pages = wire('modules')->get('ElasticSearch')->search('Something to search for'); 
+The module has a function search() that returns a PageArray;
+
+    $pages = $modules->get('ElasticSearch')->search('foo bar'); 
+
+### Pagination
+
+Pagination should be possible, you can indicate ranges of results you're interested in and you can get a total number of results so you can generate pagination.
+
+    $pages = $modules->get('ElasticSearch')->search('foo bar', $offset, $results_per_page); 
+
 	$pages->getTotal();
 
-## ElasticSearch Configuration
+### Minimum Scores
+
+The search function also takes a parameter so you can control the minimum score required for a page to match. 
+
+	$pages = $modules->get('ElasticSearch')->search('foo bar', $offset, $results_per_page, 0.05);
+
+### Custom Queries
+
+By default this module uses a [fuzzy_like_this](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-flt-query.html#_how_it_works) query to match pages. If you want to change that call the search function with an array instead of a string for the first parameter.
+
+    $pages = $modules->get('ElasticSearch')->search(array(
+        'query' => array(
+            'match' => array(
+                '_all' => 'foo bar',
+            ),
+        ),
+    ));
+
+## ElasticSearch 
+
+### Configuration
 
 Configuring ElasticSearch can be very simple, if running ElasticSearch on a single server you really only need the below configurations (/etc/elasticsearch/elasticsearch.yml):
 
@@ -43,7 +71,3 @@ Configuring ElasticSearch can be very simple, if running ElasticSearch on a sing
     index.number_of_replicas: 0
     discovery.zen.ping.multicast.enabled: false
     discovery.zen.ping.unicast.hosts: []
-
-## What gets searched?
-
-I made a quick go of trying to get all content from a page, it's working for text fields, translated fields, repeaters and filenames.
