@@ -1,4 +1,6 @@
-# ElasticSearch for ProcessWire 0.2.1
+# ElasticSearch for ProcessWire 0.3.0
+
+## Since 0.3.0 ElasticSearch for ProcessWire is using the GPLv3 License
 
 ## About ElasticSearch for ProcessWire
 
