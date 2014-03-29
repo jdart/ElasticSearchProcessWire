@@ -26,7 +26,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		return array(
 			'title' => 'ElasticSearch', 
-			'version' => 40, 
+			'version' => 41, 
 			'summary' => 'Make your pages searchable in ElasticSearch',
 			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
 			'singular' => true, 
@@ -289,11 +289,10 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 	public function search($query, $size=20, $minimum_score=0.03, $pageNum=null) {
 
-		if (is_null($pageNum) && $pageNum = $this->input->pageNum) {
-			$from = ($pageNum-1)*$size;
-		} else {
-			$from = 0;
-		}
+		if (is_null($pageNum) && ! ($pageNum = $this->input->pageNum))
+			$pageNum = 1;
+			
+		$from = ($pageNum-1)*$size;
 
 		if (is_string($query)) {
 

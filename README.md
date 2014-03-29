@@ -1,4 +1,4 @@
-# ElasticSearch for ProcessWire 0.4.0
+# ElasticSearch for ProcessWire 0.4.1
 
 ## About ElasticSearch for ProcessWire
 
