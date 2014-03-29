@@ -31,13 +31,13 @@ Most content from a page should be seachable: text fields, translated fields, re
 
 ### Searching
 
-The module has a function search() that returns a PageArray;
+The module has a function search() that returns a PageArray.
 
     $pages = $modules->get('ElasticSearch')->search('foo bar'); 
 
 ### Pagination
 
-Pagination should be possible, you can indicate ranges of results you're interested in and you can get a total number of results so you can generate pagination.
+You can indicate ranges of results you're interested in and you can get a total number of results so you can generate pagination.
 
     $pages = $modules->get('ElasticSearch')->search('foo bar', $offset, $results_per_page); 
 
@@ -45,13 +45,13 @@ Pagination should be possible, you can indicate ranges of results you're interes
 
 ### Minimum Scores
 
-The search function also takes a parameter so you can control the minimum score required for a page to match. 
+The search function also takes a 4th parameter to configure the minimum score required for a page to match. 
 
 	$pages = $modules->get('ElasticSearch')->search('foo bar', $offset, $results_per_page, 0.05);
 
 ### Custom Queries
 
-By default this module uses a [fuzzy_like_this](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-flt-query.html#_how_it_works) query to match pages. If you want to change that call the search function with an array instead of a string for the first parameter.
+By default this module uses a [fuzzy_like_this](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-flt-query.html#_how_it_works) query to match pages. To change that use an array for the 1st parameter when calling search.
 
     $pages = $modules->get('ElasticSearch')->search(array(
         'query' => array(
@@ -65,9 +65,10 @@ By default this module uses a [fuzzy_like_this](http://www.elasticsearch.org/gui
 
 ### Configuration
 
-Configuring ElasticSearch can be very simple, if running ElasticSearch on a single server you really only need the below configurations (/etc/elasticsearch/elasticsearch.yml):
+Configuring ElasticSearch can be very simple, if running ElasticSearch on a single server you really only need the below configuration in `/etc/elasticsearch/elasticsearch.yml`:
 
     index.number_of_shards: 1
     index.number_of_replicas: 0
     discovery.zen.ping.multicast.enabled: false
     discovery.zen.ping.unicast.hosts: []
+    
