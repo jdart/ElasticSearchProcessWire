@@ -321,7 +321,6 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$pages = new PageArray;
 
 		if (isset($results->error)) {
-			throw new WireException($results->error);
 			$this->pages->error('ElasticSearch: '.$results->error);
 			return $pages;
 		}
