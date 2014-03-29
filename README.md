@@ -21,7 +21,7 @@ The ElasticSearch module for [ProcessWire CMS/CMF](http://processwire.com/) will
 
 ### Synchonizing Page Data with ElasticSearch
 
-When pages are saved, deleted, trashed, and restored ElasticSearch will be notified accordinly, so after you've clicked "Index All Pages" you shouldn't need to think about it again.
+When pages are saved, deleted, trashed, and restored ElasticSearch will be notified accordingly, so after you've clicked "Index All Pages" you shouldn't need to think about it again.
 
 ## What gets searched?
 
