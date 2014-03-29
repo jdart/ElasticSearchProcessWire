@@ -31,23 +31,25 @@ Most content from a page should be seachable: text fields, translated fields, re
 
 ### Searching
 
-The module has a function search() that returns a PageArray.
+This module has a function search() that returns a PageArray.
 
     $pages = $modules->get('ElasticSearch')->search('foo bar'); 
 
 ### Pagination
 
-You can indicate ranges of results you're interested in and you can get a total number of results so you can generate pagination.
+The [MarkupPagerNav](http://processwire.com/api/modules/markup-pager-nav/) module should work out of the box.
 
-    $pages = $modules->get('ElasticSearch')->search('foo bar', $offset, $results_per_page); 
+    $pages = $modules->get('ElasticSearch')->search('foo bar', $results_per_page); 
 
-	$pages->getTotal();
+    echo "Total results: ".$matches->getTotal();
+
+	echo $pages->renderPagination();
 
 ### Minimum Scores
 
-The search function also takes a 4th parameter to configure the minimum score required for a page to match. 
+The search function also takes a 3rd parameter to configure the minimum score required for a page to match. 
 
-	$pages = $modules->get('ElasticSearch')->search('foo bar', $offset, $results_per_page, 0.05);
+	$pages = $modules->get('ElasticSearch')->search('foo bar', $results_per_page, 0.05);
 
 ### Custom Queries
 
@@ -71,4 +73,3 @@ Configuring ElasticSearch can be very simple, if running ElasticSearch on a sing
     index.number_of_replicas: 0
     discovery.zen.ping.multicast.enabled: false
     discovery.zen.ping.unicast.hosts: []
-    

@@ -287,7 +287,13 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		return $this->get('es_port');
 	}
 
-	public function search($query, $from=0, $size=20, $minimum_score=0.03) {
+	public function search($query, $size=20, $minimum_score=0.03, $pageNum=null) {
+
+		if (is_null($pageNum) && $pageNum = $this->input->pageNum) {
+			$from = ($pageNum-1)*$size;
+		} else {
+			$from = 0;
+		}
 
 		if (is_string($query)) {
 
@@ -325,6 +331,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 			return $pages;
 
 		$pages->setTotal($results->hits->total);
+		$pages->setLimit($size);
 
 		foreach ($results->hits->hits as $hit) 
 			$pages->add($hit->_id);
