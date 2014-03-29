@@ -1,6 +1,4 @@
-# ElasticSearch for ProcessWire 0.3.0
-
-Since 0.3.0 ElasticSearch for ProcessWire is using the GPLv3 license.
+# ElasticSearch for ProcessWire 0.4.0
 
 ## About ElasticSearch for ProcessWire
 
@@ -33,29 +31,29 @@ Most content from a page should be seachable: text fields, translated fields, re
 
 This module has a function search() that returns a PageArray.
 
-    $pages = $modules->get('ElasticSearch')->search('foo bar'); 
+    $results = $modules->get('ElasticSearch')->search('foo bar'); 
 
 ### Pagination
 
 The [MarkupPagerNav](http://processwire.com/api/modules/markup-pager-nav/) module should work out of the box.
 
-    $pages = $modules->get('ElasticSearch')->search('foo bar', $results_per_page); 
+    $search_results = $modules->get('ElasticSearch')->search('foo bar', $results_per_page); 
 
-    echo "Total results: ".$matches->getTotal();
+    echo "Total results: " . $search_results->getTotal();
 
-	echo $pages->renderPagination();
+	echo $search_results->renderPagination();
 
 ### Minimum Scores
 
 The search function also takes a 3rd parameter to configure the minimum score required for a page to match. 
 
-	$pages = $modules->get('ElasticSearch')->search('foo bar', $results_per_page, 0.05);
+	$search_results = $modules->get('ElasticSearch')->search('foo bar', $results_per_page, 0.05);
 
 ### Custom Queries
 
 By default this module uses a [fuzzy_like_this](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-flt-query.html#_how_it_works) query to match pages. To change that use an array for the 1st parameter when calling search.
 
-    $pages = $modules->get('ElasticSearch')->search(array(
+    $search_results = $modules->get('ElasticSearch')->search(array(
         'query' => array(
             'match' => array(
                 '_all' => 'foo bar',
