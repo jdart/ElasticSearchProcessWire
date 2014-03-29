@@ -31,7 +31,7 @@ Most content from a page should be seachable: text fields, translated fields, re
 
 This module has a function search() that returns a PageArray.
 
-    $results = $modules->get('ElasticSearch')->search('foo bar'); 
+    $search_results = $modules->get('ElasticSearch')->search('foo bar'); 
 
 ### Pagination
 
