@@ -26,7 +26,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		return array(
 			'title' => 'ElasticSearch', 
-			'version' => 41, 
+			'version' => 42, 
 			'summary' => 'Make your pages searchable in ElasticSearch',
 			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
 			'singular' => true, 
@@ -69,6 +69,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$field_button->name = 'update_all_pages';
 		$field_button->value = __('Index All Pages');
 		$field_button->href = 'edit?name='.wire('input')->get('name').'&es_update=all_pages';
+		$field_button->description = __("Only do this after setting your ip/port and clicking 'Submit'.");
 		
 		$field->add($field_button);
 
@@ -114,7 +115,14 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		if ($this->input->get('es_update') != 'all_pages' || $event->object->template != 'admin') 
 			return;
 
-		foreach ($this->pages->find("id!=2, id!=7, has_parent!=2, has_parent!=7, template!=admin, include=all") as $page) {
+		$status = $this->getElasticSearchStatus();
+
+		if ( ! $status)
+			return;
+
+		$pages = $this->pages->find("id!=2, id!=7, has_parent!=2, has_parent!=7, template!=admin, include=all");
+
+		foreach ($pages as $page) {
 
 			$this->updatePageContentInElasticSearch($page);
 		}
@@ -131,9 +139,8 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 			$value = $page->get($field->name);
 			$type = $field->type;
 
-			if (is_null($value))
+			if (is_null($value) || is_bool($value))
 				continue;
-
 			if ($type instanceof FieldtypeFile) 
 				$value = $this->getFileTypeAsContent($value);
 			elseif ($type instanceof FieldtypePage) 
@@ -233,13 +240,33 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		return $this->curlJsonRequest('DELETE', (int)$id);
 	}
 
+	public function getElasticSearchStatus()
+	{
+		$ch = curl_init();
+
+		curl_setopt_array($ch, array(
+			CURLOPT_URL => $this->getElasticSearchUrlBase('/_cluster/health'),
+			CURLOPT_RETURNTRANSFER => true,
+		));
+
+		$response = curl_exec($ch);
+
+		if ($response === false) {
+
+			$this->session->error('ElasticSearch: '.curl_error($ch));
+			return null;
+		}
+
+		return json_decode($response);
+	}
+
 	public function curlJsonRequest($method=null, $append_url='', $data=null)
 	{
 		static $ch;
 
 		if ( ! isset($ch))
 			$ch = curl_init();
-		
+
 		$config = array(
 			CURLOPT_URL => $this->getElasticSearchUrlBase().$append_url,
 			CURLOPT_RETURNTRANSFER => true,
@@ -256,19 +283,23 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$response = curl_exec($ch);
 
 		if ($response === false) {
-			$this->pages->error('ElasticSearch: '.curl_error($ch));
+
+			$this->session->error('ElasticSearch: '.curl_error($ch));
 			return null;
 		}
 
 		return json_decode($response);
 	}
 
-	protected function getElasticSearchUrlBase() {
+	protected function getElasticSearchUrlBase($url=null) {
 
-		return sprintf('http://%s:%d/%s/pw/', 
+		if (is_null($url))
+			$url = sprintf('/%s/pw/', $this->getSiteIndex());
+
+		return sprintf('http://%s:%d%s', 
 			$this->getElasticSearchHost(), 
 			$this->getElasticSearchPort(),
-			$this->getSiteIndex()
+			$url
 		);
 	}
 
@@ -320,8 +351,13 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		$pages = new PageArray;
 
+		if ( ! $results) {
+			$this->session->error('ElasticSearch: Could not connect to ES server.');
+			return $pages;
+		}
+
 		if (isset($results->error)) {
-			$this->pages->error('ElasticSearch: '.$results->error);
+			$this->session->error('ElasticSearch: '.$results->error);
 			return $pages;
 		}
 

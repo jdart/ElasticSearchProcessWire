@@ -1,8 +1,8 @@
-# ElasticSearch for ProcessWire 0.4.1
+# ElasticSearch for ProcessWire 0.4.2
 
 ## About ElasticSearch for ProcessWire
 
-The ElasticSearch module for [ProcessWire CMS/CMF](http://processwire.com/) will add your page content to an ElasticSearch index, and give you a convenient way to search it.
+The ElasticSearch module for [ProcessWire CMS/CMF](http://processwire.com/) will add your page content to an ElasticSearch index per site, and give you a convenient way to search it.
 
 * [Information about the author](http://metricmarketing.ca/jonathan-dart)
 * [Information about Metric Marketing](http://metricmarketing.ca)
@@ -64,6 +64,8 @@ By default this module uses a [fuzzy_like_this](http://www.elasticsearch.org/gui
 ## ElasticSearch 
 
 ### Configuration
+
+This plugin will create an index based on the http host, so if you have many sites one one server they can all safely use the same ElasticSearch server, no special configuration is required to support multiple sites.
 
 Configuring ElasticSearch can be very simple, if running ElasticSearch on a single server you really only need the below configuration in `/etc/elasticsearch/elasticsearch.yml`:
 
