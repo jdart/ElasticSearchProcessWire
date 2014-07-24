@@ -116,7 +116,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		foreach (explode(' ', $this->es_templates) as $template)
 			$allowed_templates[] = $template;
 
-		return $allowed_templates;
+		return array_filter($allowed_templates);
 	}
 
 	public function pageShouldBeIndexed($page) {
