@@ -26,7 +26,7 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		return array(
 			'title' => 'ElasticSearch', 
-			'version' => 43, 
+			'version' => 44, 
 			'summary' => 'Make your pages searchable in ElasticSearch',
 			'href' => 'https://github.com/jdart/ElasticSearchProcessWire',
 			'singular' => true, 
@@ -60,6 +60,13 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$field->label = __("ElasticSearch Port");
 		$field->value = isset($data['es_port']) ? $data['es_port'] : '9200';
 		$field->description = __("Usually 9200.");
+		$fields->add($field);
+
+		$field = $modules->get("InputfieldText");
+		$field->name = "es_templates";
+		$field->label = __("Template Whitelist");
+		$field->value = isset($data['es_templates']) ? $data['es_templates'] : '';
+		$field->description = __("Example: basic-page");
 		$fields->add($field);
 		
 		$field = $modules->get('InputfieldMarkup');
@@ -102,7 +109,22 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		$response = $this->curlJsonDelete($page->id);
 	}
 
+	public function getAllowedTemplates() {
+
+		$allowed_templates = array();
+
+		foreach (explode(' ', $this->es_templates) as $template)
+			$allowed_templates[] = $template;
+
+		return $allowed_templates;
+	}
+
 	public function pageShouldBeIndexed($page) {
+
+		$allowed_templates = $this->getAllowedTemplates();
+
+		if ($allowed_templates && ! in_array($page->template, $allowed_templates))
+			return false;
 
 		if ($page->isPublic())
 			return true;
@@ -119,6 +141,8 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 
 		if ( ! $status)
 			return;
+
+		$this->curlJsonRequest('DELETE');
 
 		$pages = $this->pages->find("id!=2, id!=7, has_parent!=2, has_parent!=7, template!=admin, include=all");
 
@@ -364,11 +388,11 @@ class ElasticSearch extends WireData implements Module, ConfigurableModule {
 		if ( ! (int)$results->hits->total)
 			return $pages;
 
-		$pages->setTotal($results->hits->total);
-		$pages->setLimit($size);
-
 		foreach ($results->hits->hits as $hit) 
 			$pages->add($hit->_id);
+
+		$pages->setTotal($results->hits->total);
+		$pages->setLimit($size);
 		
 		return $pages;
 	}
